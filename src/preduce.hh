@@ -32,7 +32,7 @@
 
 namespace preduce {
 void init();
-void preduce(float*, int*, int);
+void preduce(const float*, const int*, int, float*);
 void sync();
 };  // namespace preduce
 

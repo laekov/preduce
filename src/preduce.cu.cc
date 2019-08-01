@@ -35,7 +35,7 @@ void init() {
     initialized = true;
 }
 
-void preduce(float* databuf, int* group, size_t n) {
+void preduce(const float* inbuf, const int* group, size_t n, float* outbuf) {
     if (!initialized) {
         init();
     }
@@ -69,7 +69,7 @@ void preduce(float* databuf, int* group, size_t n) {
     } else {
         comm = it->second;
     }
-    NCCLCHECK(ncclAllReduce((void*)databuf, (void*)databuf, n, ncclFloat, ncclSum, comm, stream));
+    NCCLCHECK(ncclAllReduce((void*)inbuf, (void*)outbuf, n, ncclFloat, ncclSum, comm, stream));
 }
 
 void sync() {
