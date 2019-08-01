@@ -31,10 +31,15 @@
 } while(0)
 
 namespace preduce {
-void init();
 void preduce(const float*, const int*, int, float*);
 void sync();
 };  // namespace preduce
+
+
+extern "C" {
+void preduceSync();
+void preduceCompute(const float*, const int*, int, float*);
+};
 
 #endif  // PREDUCE_HH
 
