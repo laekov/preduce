@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -22,17 +24,18 @@ public:
     
     void Compute(OpKernelContext* context) override {
         const Tensor& input_tensor = context->input(0);
-        const Tensor& group_tensor = context->input(0);
+        int data_size = static_cast<int>(input_tensor.NumElements());
+
+        const Tensor& group_tensor = context->input(1);
 
         Tensor* output_tensor = NULL;
         OP_REQUIRES_OK(context, context->allocate_output(0, 
                     input_tensor.shape(), &output_tensor));
 
-        preduce::preduce(
-                (const float*)(const void*)input_tensor.tensor_data().data(), 
-                (const int*)(const void*)group_tensor.tensor_data().data(),
-                input_tensor.tensor_data().size(), 
-                (float*)(void*)output_tensor->tensor_data().data()
+        preduceCompute(
+                input_tensor.flat<float>().data(), 
+                group_tensor.flat<int>().data(), data_size,
+                output_tensor->flat<float>().data()
                 );
     }
 };
@@ -53,7 +56,10 @@ public:
     explicit PReduceSync(OpKernelConstruction* context) : OpKernel(context) {}
     
     void Compute(OpKernelContext* context) override {
-        preduce::sync();
+        preduceSync();
+        Tensor* output_tensor = NULL;
+        OP_REQUIRES_OK(context, context->allocate_output(0, 
+                    {1}, &output_tensor));
     }
 };
 
