@@ -40,7 +40,7 @@ public:
     }
 };
 
-REGISTER_KERNEL_BUILDER(Name("PReduce").Device(DEVICE_GPU), PReduce);
+REGISTER_KERNEL_BUILDER(Name("PReduce").Device(DEVICE_CPU), PReduce);
 
 
 REGISTER_OP("PReduceSync")

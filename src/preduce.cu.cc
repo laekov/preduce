@@ -24,27 +24,64 @@ struct VectorHasher {
 
 
 std::unordered_map<std::vector<int>, ncclComm_t, VectorHasher> comms;
+std::unordered_map<std::vector<int>, MPI_Comm, VectorHasher> mpicomms;
 int comm_world_size, comm_world_rank;
 cudaStream_t stream;
 bool initialized(false);
 
-void init() {
+void init(bool cuda=true) {
     MPI_Init(0, 0);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &comm_world_rank);
 
-    CUDACHECK(cudaStreamCreate(&stream));
+    if (cuda) {
+        CUDACHECK(cudaStreamCreate(&stream));
+    }
     initialized = true;
 }
 
-void preduce(const float* inbuf, const int* group, int n, float* outbuf) {
+void preduce_cpu(const float* inbuf, const int* group, int n, float* outbuf) {
+    if (!initialized) {
+        init(false);
+    }
+ 
+    int comm_rank = 0, comm_size = 0;
+    std::vector<int> members;
+    for (int i = 0; i < comm_world_size; ++i) {
+        if (group[i]) {
+            members.push_back(i);
+        }
+    }
+    auto it(mpicomms.find(members));
+
+    MPI_Comm allred_comm;
+
+    if (it == mpicomms.end()) {
+        int comm_size(members.size()) ;
+        MPI_Group world_group, allred_group;
+        ncclUniqueId id;
+
+        MPICHECK(MPI_Comm_group(MPI_COMM_WORLD, &world_group));
+        MPICHECK(MPI_Group_incl(world_group, comm_size, members.data(), 
+                    &allred_group));
+        MPICHECK(MPI_Comm_create_group(MPI_COMM_WORLD, allred_group, 0, 
+                    &allred_comm));
+        mpicomms[members] = allred_comm;
+    } else {
+        allred_comm = it->second;
+    }
+    fprintf(stderr, "%d do die %f\n", comm_world_rank, *inbuf);
+    MPI_Comm_rank(allred_comm, &comm_rank);
+    MPICHECK(MPI_Allreduce(inbuf, outbuf, n, MPI_FLOAT, MPI_SUM, allred_comm));
+    fprintf(stderr, "allreduce done\n");
+}
+
+void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
     if (!initialized) {
         init();
     }
 
     int comm_rank = 0, comm_size = 0;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
 
     int* group_cpu = new int[comm_world_size];
     cudaMemcpy(group_cpu, group, sizeof(int) * comm_world_size,
@@ -59,7 +96,7 @@ void preduce(const float* inbuf, const int* group, int n, float* outbuf) {
     auto it(comms.find(members));
     ncclComm_t comm;
     if (it == comms.end()) {
-        int comm_size(members.size()), comm_rank;
+        int comm_size(members.size()) ;
         MPI_Group world_group, allred_group;
         ncclUniqueId id;
 
@@ -98,7 +135,7 @@ void preduceSync() {
 }
 
 void preduceCompute(const float* a, const int* b, int c, float* d) {
-    preduce::preduce(a, b, c, d);
+    preduce::preduce_cpu(a, b, c, d);
     preduce::sync();
 }
 };
