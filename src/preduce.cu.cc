@@ -90,6 +90,12 @@ void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
         }
     }
 
+    if (members.size() <= 1) {
+        cudaMemcpy(outbuf, inbuf, sizeof(float) * n, cudaMemcpyDeviceToDevice);
+        delete [] group_cpu;
+        return;
+    }
+
     auto it(comms.find(members));
     ncclComm_t comm;
     if (it == comms.end()) {
