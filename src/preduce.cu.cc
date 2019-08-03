@@ -70,10 +70,7 @@ void preduce_cpu(const float* inbuf, const int* group, int n, float* outbuf) {
     } else {
         allred_comm = it->second;
     }
-    fprintf(stderr, "%d do die %f\n", comm_world_rank, *inbuf);
-    MPI_Comm_rank(allred_comm, &comm_rank);
     MPICHECK(MPI_Allreduce(inbuf, outbuf, n, MPI_FLOAT, MPI_SUM, allred_comm));
-    fprintf(stderr, "allreduce done\n");
 }
 
 void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
@@ -96,7 +93,12 @@ void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
     auto it(comms.find(members));
     ncclComm_t comm;
     if (it == comms.end()) {
-        int comm_size(members.size()) ;
+        int comm_size(members.size());
+        if (comm_size <= 1) {
+            fprintf(stderr, "What do you want me to sync???\n");
+            delete [] group_cpu;
+            return;
+        }
         MPI_Group world_group, allred_group;
         ncclUniqueId id;
 
@@ -135,7 +137,7 @@ void preduceSync() {
 }
 
 void preduceCompute(const float* a, const int* b, int c, float* d) {
-    preduce::preduce_cpu(a, b, c, d);
+    preduce::preduce_gpu(a, b, c, d);
     preduce::sync();
 }
 };

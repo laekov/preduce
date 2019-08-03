@@ -9,7 +9,7 @@ TF_CFLAGS ?= $(shell python3 -c 'import tensorflow as tf; print(" ".join(tf.sysc
 TF_LFLAGS ?= $(shell python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
 
 CXX ?= g++
-CCFLAGS ?= -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0
+CCFLAGS ?= -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0 -O2
 
 preduce.so : tfpreduce.o ../src/preduce.o
 	$(CXX) $(CCFLAGS) -shared tfpreduce.o ../src/preduce.o \

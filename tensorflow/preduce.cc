@@ -40,27 +40,4 @@ public:
     }
 };
 
-REGISTER_KERNEL_BUILDER(Name("PReduce").Device(DEVICE_CPU), PReduce);
-
-
-REGISTER_OP("PReduceSync")
-    .Output("result: int32")
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-            c->set_output(0, c->Scalar());
-            return Status::OK();
-    });
-
-
-class PReduceSync: public OpKernel {
-public:
-    explicit PReduceSync(OpKernelConstruction* context) : OpKernel(context) {}
-    
-    void Compute(OpKernelContext* context) override {
-        preduceSync();
-        Tensor* output_tensor = NULL;
-        OP_REQUIRES_OK(context, context->allocate_output(0, 
-                    {1}, &output_tensor));
-    }
-};
-
-REGISTER_KERNEL_BUILDER(Name("PReduceSync").Device(DEVICE_CPU), PReduceSync);
+REGISTER_KERNEL_BUILDER(Name("PReduce").Device(DEVICE_GPU), PReduce);
