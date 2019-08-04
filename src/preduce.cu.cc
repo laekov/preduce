@@ -96,9 +96,10 @@ void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
         return;
     }
 
-    auto it(comms.find(members));
+    // Removed comm cache. Seems to be useless. 
+    // auto it(comms.find(members));
     ncclComm_t comm;
-    if (it == comms.end()) {
+    if (true) { // (it == comms.end()) {
         int comm_size(members.size());
         if (comm_size <= 1) {
             fprintf(stderr, "What do you want me to sync???\n");
@@ -111,21 +112,26 @@ void preduce_gpu(const float* inbuf, const int* group, int n, float* outbuf) {
         MPICHECK(MPI_Comm_group(MPI_COMM_WORLD, &world_group));
         MPICHECK(MPI_Group_incl(world_group, comm_size, members.data(), 
                     &allred_group));
-        MPI_Comm allred_comm;
-        MPICHECK(MPI_Comm_create_group(MPI_COMM_WORLD, allred_group, 0, 
-                    &allred_comm));
+        MPI_Comm allred_comm(MPI_COMM_NULL);
+        do {
+            MPICHECK(MPI_Comm_create_group(MPI_COMM_WORLD, allred_group, 0, 
+                        &allred_comm));
+        } while (allred_comm == MPI_COMM_NULL);
         MPICHECK(MPI_Comm_rank(allred_comm, &comm_rank));
         if (comm_rank == 0) { 
             ncclGetUniqueId(&id); 
         }
         MPICHECK(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, allred_comm));
         NCCLCHECK(ncclCommInitRank(&comm, comm_size, id, comm_rank));
-        comms[members] = comm;
+        MPI_Comm_free(&allred_comm);
+        /// comms[members] = comm;
+        // fprintf(stderr, "Size is now %lu\n", comms.size());
     } else {
         comm = it->second;
     }
     NCCLCHECK(ncclAllReduce((void*)inbuf, (void*)outbuf, n, ncclFloat, ncclSum,
                comm, stream));
+    NCCLCHECK(ncclCommDestroy(comm));
 
     delete [] group_cpu;
 }
